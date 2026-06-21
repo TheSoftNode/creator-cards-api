@@ -5,7 +5,6 @@ const { CreatorCard } = require('@app/models');
 const { CreatorCardMessages } = require('@app/messages');
 const generateSlug = require('./generate-slug');
 
-// VSL validation spec for create creator card
 const createCardSpec = `root {
   title string
   description? string
@@ -24,58 +23,45 @@ const createCardSpec = `root {
 const parsedSpec = validator.parse(createCardSpec);
 
 async function createCreatorCard(serviceData) {
-  // Step 1: Validate with VSL
   const data = validator.validate(serviceData, parsedSpec);
 
-  // Step 2: Additional field-level validations
-  // Title: 3-100 characters
   if (data.title.length < 3 || data.title.length > 100) {
     throwAppError('Title must be between 3 and 100 characters', ERROR_CODE.BADREQUEST);
   }
 
-  // Description: max 500 characters
   if (data.description && data.description.length > 500) {
     throwAppError('Description cannot exceed 500 characters', ERROR_CODE.BADREQUEST);
   }
 
-  // Creator reference: exactly 20 characters
   if (data.creator_reference.length !== 20) {
     throwAppError('creator_reference must be exactly 20 characters', ERROR_CODE.BADREQUEST);
   }
 
-  // Status: must be 'draft' or 'published'
   if (!['draft', 'published'].includes(data.status)) {
     throwAppError('status must be either "draft" or "published"', ERROR_CODE.BADREQUEST);
   }
 
-  // Access type: default to 'public' if not provided
   const accessType = data.access_type || 'public';
   if (!['public', 'private'].includes(accessType)) {
     throwAppError('access_type must be either "public" or "private"', ERROR_CODE.BADREQUEST);
   }
 
-  // Step 3: Business rule validations for access_code
-  // AC01: access_code is required when access_type is private
   if (accessType === 'private' && !data.access_code) {
     throwAppError(CreatorCardMessages.ACCESS_CODE_REQUIRED_FOR_PRIVATE, ERROR_CODE.BADREQUEST, 'AC01');
   }
 
-  // AC05: access_code must not be set on public cards
   if (accessType === 'public' && data.access_code) {
     throwAppError(CreatorCardMessages.ACCESS_CODE_NOT_ALLOWED_ON_PUBLIC, ERROR_CODE.BADREQUEST, 'AC05');
   }
 
-  // Validate access_code format if provided
   if (data.access_code) {
     if (data.access_code.length !== 6 || !/^[a-zA-Z0-9]{6}$/.test(data.access_code)) {
       throwAppError('access_code must be exactly 6 alphanumeric characters', ERROR_CODE.BADREQUEST);
     }
   }
 
-  // Step 4: Validate slug if provided, or generate one
   let slug;
   if (data.slug) {
-    // Validate provided slug
     if (data.slug.length < 5 || data.slug.length > 50) {
       throwAppError('slug must be between 5 and 50 characters', ERROR_CODE.BADREQUEST);
     }
@@ -83,18 +69,15 @@ async function createCreatorCard(serviceData) {
       throwAppError('slug can only contain letters, numbers, hyphens and underscores', ERROR_CODE.BADREQUEST);
     }
 
-    // SL02: Check if slug is already taken
     const existingCard = await CreatorCard.findOne({ slug: data.slug, deleted: null });
     if (existingCard) {
       throwAppError(CreatorCardMessages.SLUG_ALREADY_TAKEN, ERROR_CODE.BADREQUEST, 'SL02');
     }
     slug = data.slug;
   } else {
-    // Auto-generate slug from title
     slug = await generateSlug(data.title);
   }
 
-  // Step 5: Validate links if provided
   if (data.links) {
     if (!Array.isArray(data.links)) {
       throwAppError('links must be an array', ERROR_CODE.BADREQUEST);
@@ -112,7 +95,6 @@ async function createCreatorCard(serviceData) {
     });
   }
 
-  // Step 6: Validate service_rates if provided
   if (data.service_rates) {
     const validCurrencies = ['NGN', 'USD', 'GBP', 'GHS'];
     if (!validCurrencies.includes(data.service_rates.currency)) {
@@ -136,7 +118,6 @@ async function createCreatorCard(serviceData) {
     });
   }
 
-  // Step 7: Create the card
   const now = Date.now();
   const cardData = {
     _id: ulid(),
@@ -158,14 +139,12 @@ async function createCreatorCard(serviceData) {
   try {
     createdCard = await CreatorCard.create(cardData);
   } catch (error) {
-    // Handle MongoDB duplicate key error
     if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
       throwAppError(CreatorCardMessages.SLUG_ALREADY_TAKEN, ERROR_CODE.BADREQUEST, 'SL02');
     }
     throw error;
   }
 
-  // Step 8: Transform response (_id -> id)
   const response = createdCard.toObject();
   response.id = response._id;
   delete response._id;
