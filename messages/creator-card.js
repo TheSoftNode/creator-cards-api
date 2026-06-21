@@ -1,0 +1,18 @@
+module.exports = {
+  // Success messages
+  CARD_CREATED: 'Creator Card Created Successfully.',
+  CARD_RETRIEVED: 'Creator Card Retrieved Successfully.',
+  CARD_DELETED: 'Creator Card Deleted Successfully.',
+
+  // Error messages - Slug
+  SLUG_ALREADY_TAKEN: 'Slug is already taken',
+
+  // Error messages - Access Code
+  ACCESS_CODE_REQUIRED_FOR_PRIVATE: 'access_code is required when access_type is private',
+  ACCESS_CODE_NOT_ALLOWED_ON_PUBLIC: 'access_code can only be set on private cards',
+  ACCESS_CODE_REQUIRED: 'This card is private. An access code is required',
+  INVALID_ACCESS_CODE: 'Invalid access code',
+
+  // Error messages - Not Found
+  CARD_NOT_FOUND: 'Creator card not found',
+};
